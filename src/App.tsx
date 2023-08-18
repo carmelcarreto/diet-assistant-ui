@@ -1,12 +1,25 @@
+import Container from '@mui/material/Container';
+import HeaderAppBar from './components/HeaderAppBar';
+import LabelBottomNavigation from './components/LabelBottomNavigation';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 
-function App() {
+export default function App() {
 
   return (
     <>
-    <h1>Paagina principal</h1>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <Container maxWidth="xs">
+          <HeaderAppBar />
+          <LabelBottomNavigation />
+      </Container>
+      </LocalizationProvider>
+      
     </>
   )
 }
 
-export default App
+
+
+
