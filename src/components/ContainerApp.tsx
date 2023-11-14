@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Container, Typography, debounce } from "@mui/material"
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Container, Typography, debounce, Theme } from "@mui/material"
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import HouseIcon from '@mui/icons-material/House';
@@ -12,6 +12,21 @@ import { DateCalendar } from '@mui/x-date-pickers';
 import AddIcon from '@mui/icons-material/Add';
 import Fab from '@mui/material/Fab';
 import { red } from "@mui/material/colors"
+import { makeStyles } from '@mui/styles';
+
+const useStyles = makeStyles((theme) => ({
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh',
+  },
+  text: {
+    textAlign: 'center',
+    fontSize: '1.0em',
+  },
+}));
 
 
 function App() {
@@ -25,6 +40,8 @@ function App() {
   const handleChange = (event: React.SyntheticEvent, newValue: string) => {
     setValue(newValue);
   };
+  
+  const classes = useStyles();
 
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
@@ -57,7 +74,7 @@ function App() {
 
   return (
     <>
-      <Container>
+      <Container component="main" maxWidth="md">
         <Stack justifyContent="space-between">
           <Box ref={appBarRef} sx={{border: 1}}>
             <Stack direction="row" spacing={1} justifyContent="center" >
@@ -68,25 +85,16 @@ function App() {
               </Box>
             </Stack>
           </Box>
-          <Box height={`${contentHeight}px`} sx={{backgroundColor: red[50], overflowY: 'auto'}}>
-            <Stack direction='row-reverse'>
-              <Box 
-                height={`${contentHeight}px`} 
-                sx={{ backgroundColor: red[50], 
-                overflowY: 'auto', 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center'}}
-              >
-                <Typography>
+          <Box>
+            <Stack className={classes.root} direction='row-reverse'>
+              <Box sx={{ backgroundColor: red[50], display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+                <Typography variant='h6' className={classes.text}>
                   No hay dietas registradas.
                 </Typography>
               </Box>
             </Stack>
             
-            <Stack  
-              direction="row-reverse"
-            >
+            <Stack direction="row-reverse">
             <Button onClick={handleOpen}>
               <Box sx={{ textAlign: "center"}}>
                 <Fab  size="medium" color="primary" aria-label="add" >
