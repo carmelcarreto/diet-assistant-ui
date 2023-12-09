@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Container, Typography, debounce,TextField, CardContent, Card, CardActions, IconButton, Grid, Menu, MenuItem, Link } from '@mui/material';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
@@ -26,89 +27,103 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 interface Diet {
+  id: string;
   nameDiet: string;
-  desc: string;
-  extraText1: string;
-  extraText2: string;
 }
-
 
 export default function App() {
   const appBarRef = useRef<HTMLDivElement | null>(null);
   const bottomBarRef = useRef<HTMLDivElement | null>(null);
-  const nameDietRef = useRef<HTMLInputElement | null>(null);
-  const descRef = useRef<HTMLInputElement | null>(null);
+
+  // State for the modal
+  const [modalOpen, setModalOpen] = useState(false);
+
+  //State for the selected diet and its edit index
+  const [selectedDiet, setSelectedDiet] = useState<boolean | null>(null);
+
+  //State for the new diet
+  const [newDiet, setNewDiet] = useState<Diet>({ id: '', nameDiet: ''});
+  
+  //State for the diet being edited
+  const [editingDiet, setEditingDiet] = useState<Diet | null>(null);
+
+  //State for diet list
+  const [diets, setDiets] = useState<Diet[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  //State for options menu
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  
+  const [value, setValue] = useState('plan');
 
   const [windowWidth, setWindowWidth] = useState(window.innerHeight);
   const [contentHeight, setContentHeight] = useState<number>(0);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [value, setValue] = useState('plan');
-  
   const handleChange = (event: React.SyntheticEvent, newValue: string) => {
     setValue(newValue);
   };
   
   const classes = useStyles();
-  
-  const [selectedDiet, setSelectedDiet] = useState(true);
-  const [newDiet, setNewDiet] = useState({ nameDiet: '', desc: '', extraText1: '' , extraText2: ''});
-  const [diets, setDiets] = useState<Diet[]>([]);
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  
+
   const handleOpenModal = () => {
-    //console.log('open modal');
-    setNewDiet({nameDiet: '', desc: '', extraText1: '', extraText2: ''});
+    console.log('Opening modal for diet:', editingDiet || newDiet);
     setModalOpen(true);
-    //console.log("modalOpen state:", modalOpen);
   };
 
   const handleClose = () => {
-    //console.log('closing modal');
     setModalOpen(false);
     setMenuAnchorEl(null);
   }
   
-  const handleAcceptDiet = () => {
-    console.log('accepting diet');
-    const nameDietValue = document.getElementById('nameDiet')?.value ?? '';
-    const descValue = document.getElementById('desc')?.value ?? '';
+  const handleEditDiet = (dietToEdit: Diet) => {
+    setEditingDiet({ ...dietToEdit });
+    handleOpenModal();
+  };
 
-    if(editingIndex !== null) {
-      const updatedDiets = [...diets];
-      updatedDiets[editingIndex] = { ...newDiet};
-      setDiets(updatedDiets);
-      setEditingIndex(null);
-    }else{
-      setDiets([...diets, {...newDiet, extraText1: newDiet.extraText1, extraText2: newDiet.extraText2}]);
-    }
+  const handleDeletDiet = (id: string) => {
+    console.log('Deleting diet at index:', id);
+    setDiets(prevDiets => prevDiets.filter(diet => diet.id !== id));
+  };
+
+  const handleAcceptDiet = () => {
+    console.log('handleAcceptDiet called');
+    console.log('editingDiet:', editingDiet);
+    console.log('newDiet:', newDiet);
+
+    if (editingIndex !== null) {
+      setDiets((prevDiets) => {
+        const updatedDiets = [...prevDiets];
     
-    setNewDiet({nameDiet: '', desc: '', extraText1: '', extraText2: ''});
+        // Obtén el diet que se está editando
+        const dietBeingEdited = updatedDiets[editingIndex];
+        console.log('Lista de dietas antes de la búsqueda:', updatedDiets);
+    
+        // Asegúrate de que la dieta que se está editando no sea nula o indefinida
+        if (editingDiet  && dietBeingEdited && dietBeingEdited.id === editingDiet.id) {
+          // Actualiza el diet con la nueva información, manteniendo el 'id'
+          updatedDiets[editingIndex] = {
+            ...dietBeingEdited,
+            nameDiet: editingDiet.nameDiet ?? '',
+          };
+        } else {
+          console.error("La dieta que se está editando no se encuentra en la lista.");
+        }
+    
+        return updatedDiets;
+      });
+      setEditingDiet(null);
+    } else {
+      const newId = uuidv4(); // Genera un nuevo ID único
+      console.log('newDiet before reset:', newDiet);
+      setDiets((prevDiets) => [...prevDiets, { ...newDiet, id: newId}]);
+    }
+
+    setNewDiet({id: '', nameDiet: ''});
     setSelectedDiet(null);
     handleClose();
-    
-    //console.log(`Accepted Diet: ${nameDietValue}`);
   };
 
-  const handleEditDiet = (index) => {
-    const dietEdit = diets[index];
-    setEditingIndex(index);
-    setNewDiet({ nameDiet: dietEdit.nameDiet, desc: dietEdit.desc, extraText1: dietEdit.extraText1, extraText2: dietEdit.extraText2});
-    handleOpenModal();
-
-    //console.log(`Editar diet en el indice ${index}`);
-  };
-
-  const handleDeletDiet = (index) => {
-    const updatedDiets = [...diets];
-    updatedDiets.splice(index, 1);
-    setDiets(updatedDiets);
-    //console.log(`Borrar dieta en el indice ${index}`);
-  };
-
-  const handleOptionsClick = useCallback((event) => {
-    //console.log('Open options menu for diet at index:', event);
+  const handleOptionsClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchorEl(event.currentTarget);
   },[setMenuAnchorEl]);
   
@@ -159,14 +174,14 @@ export default function App() {
                     {diets.map((diet, index) => (
                         <Card key={index} sx={{ margin: 1, display: 'flex', flexDirection: 'row', alignItems: 'start'}}>
                           <CardContent style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', flex: 1, marginRight: '16px'}}>
-                            <Typography variant="body1" style={{marginBottom: '4px'}}>
+                            <Typography variant="body1" style={{marginBottom: '4px', color: 'black'}}>
                               {diet.nameDiet}
                             </Typography>
                             <Typography variant='body2' style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginBottom: '8px' }}>
-                              <Link href={diet.extraText1} target="_blank" rel="noopener noreferrer" style={{ marginRight: '8px' }}>
+                              <Link href="_blank" target="_blank" rel="noopener noreferrer" style={{ marginRight: '8px' }}>
                                 Menús
                               </Link>
-                              <Link href={diet.extraText2} target="_black" rel="noopener noreferrer">
+                              <Link href="_blank" target="_black" rel="noopener noreferrer">
                                 Grupos de Alimentos
                               </Link>
                             </Typography>
@@ -215,7 +230,7 @@ export default function App() {
               onClose={handleClose}
             >
               <DialogTitle id="form-dialog-title">
-                {selectedDiet ? 'Edit Diet' : 'New Diet'}
+                {editingDiet ? 'Edit Diet' : 'New Diet'}
               </DialogTitle>
               <DialogContent>
                 <Grid container spacing={2}>
@@ -224,18 +239,22 @@ export default function App() {
                       id='nameDiet'
                       label="Name of Diet" 
                       fullWidth 
-                      value={newDiet.nameDiet} 
-                      onChange={(e) => setNewDiet({...newDiet, nameDiet: e.target.value})}
+                      value={ editingDiet ? editingDiet.nameDiet : newDiet.nameDiet} 
+                      onChange={(e) => { 
+                        if(editingDiet) {
+                          setEditingDiet({ ...editingDiet, nameDiet: e.target.value});
+                        } else {
+                          setNewDiet({ ...newDiet, nameDiet: e.target.value});
+                        }
+                      }}
                     />
                   </Grid>
                 </Grid>
               </DialogContent>
               <DialogActions>
-                <Button onClick={handleClose}>
-                  Cancel
-                </Button>
+                <Button onClick={handleClose}>Cancel</Button>
                 <Button onClick={handleAcceptDiet} color='primary'>
-                  {selectedDiet ? 'Create' : 'Save'}
+                  {editingDiet ? 'Save' : 'Create'}
                 </Button>
               </DialogActions>
             </Dialog>
