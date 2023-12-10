@@ -12,7 +12,7 @@ import Fab from '@mui/material/Fab';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { makeStyles } from '@mui/styles';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
     display: 'flex',
     flexDirection: 'column',
@@ -38,21 +38,17 @@ export default function App() {
   // State for the modal
   const [modalOpen, setModalOpen] = useState(false);
 
-  //State for the selected diet and its edit index
-  const [selectedDiet, setSelectedDiet] = useState<boolean | null>(null);
-
-  //State for the new diet
-  const [newDiet, setNewDiet] = useState<Diet>({ id: '', nameDiet: ''});
-  
-  //State for the diet being edited
-  const [editingDiet, setEditingDiet] = useState<Diet | null>(null);
-
-  //State for diet list
-  const [diets, setDiets] = useState<Diet[]>([]);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-
   //State for options menu
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+  const [selectedDietForMenu, setSelectedDietForMenu] = useState<Diet | null>(null);
+
+  const [diets, setDiets] = useState<Diet[]>([]);
+  const [newDiet, setNewDiet] = useState<Diet>({ id: '', nameDiet: '' });
+  const [editingDiet, setEditingDiet] = useState<Diet | null>(null);
+  const [creatingNewDiet, setCreatingNewDiet] = useState(false);
+
+  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
   
   const [value, setValue] = useState('plan');
 
@@ -65,9 +61,31 @@ export default function App() {
   
   const classes = useStyles();
 
-  const handleOpenModal = () => {
-    console.log('Opening modal for diet:', editingDiet || newDiet);
+  const handleOpenModal = (dietToEdit: Diet | null= null) => {
     setModalOpen(true);
+    setCreatingNewDiet(!dietToEdit);
+    setEditingDiet(dietToEdit);
+    setNewDiet({ id: dietToEdit?.id || uuidv4(), nameDiet: dietToEdit?.nameDiet || '' });
+  };
+
+  const handleAcceptDiet = () => {
+    if (creatingNewDiet) {
+      // Agregar nueva dieta a la lista
+      setDiets((prevDiets) => [...prevDiets, newDiet]);
+    } else if (editingDiet) {
+      // Actualizar dieta existente en la lista
+      setDiets((prevDiets) =>
+        prevDiets.map((diet) =>
+          diet.id === editingDiet.id ? { ...diet, nameDiet: editingDiet.nameDiet } : diet
+        )
+      );
+    }
+    // Limpiar estados
+    setModalOpen(false);
+    setMenuAnchorEl(null);
+    setCreatingNewDiet(false);
+    setEditingDiet(null);
+    setNewDiet({ id: '', nameDiet: '' });
   };
 
   const handleClose = () => {
@@ -75,57 +93,26 @@ export default function App() {
     setMenuAnchorEl(null);
   }
   
-  const handleEditDiet = (dietToEdit: Diet) => {
-    setEditingDiet({ ...dietToEdit });
-    handleOpenModal();
+  const handleOptionsClick = useCallback((event: React.MouseEvent<HTMLElement>, diet: Diet) => {
+    setMenuAnchorEl(event.currentTarget);
+    setSelectedDietForMenu(diet);
+    setConfirmDeleteDialogOpen(false);
+  },[setMenuAnchorEl, setSelectedDietForMenu, setConfirmDeleteDialogOpen]);
+
+  const handleEditDiet = (diet: Diet | null) => {
+    handleOpenModal(diet);
+    setMenuAnchorEl(null);
   };
 
-  const handleDeletDiet = (id: string) => {
-    console.log('Deleting diet at index:', id);
-    setDiets(prevDiets => prevDiets.filter(diet => diet.id !== id));
-  };
-
-  const handleAcceptDiet = () => {
-    console.log('handleAcceptDiet called');
-    console.log('editingDiet:', editingDiet);
-    console.log('newDiet:', newDiet);
-
-    if (editingIndex !== null) {
-      setDiets((prevDiets) => {
-        const updatedDiets = [...prevDiets];
-    
-        // Obtén el diet que se está editando
-        const dietBeingEdited = updatedDiets[editingIndex];
-        console.log('Lista de dietas antes de la búsqueda:', updatedDiets);
-    
-        // Asegúrate de que la dieta que se está editando no sea nula o indefinida
-        if (editingDiet  && dietBeingEdited && dietBeingEdited.id === editingDiet.id) {
-          // Actualiza el diet con la nueva información, manteniendo el 'id'
-          updatedDiets[editingIndex] = {
-            ...dietBeingEdited,
-            nameDiet: editingDiet.nameDiet ?? '',
-          };
-        } else {
-          console.error("La dieta que se está editando no se encuentra en la lista.");
-        }
-    
-        return updatedDiets;
-      });
-      setEditingDiet(null);
-    } else {
-      const newId = uuidv4(); // Genera un nuevo ID único
-      console.log('newDiet before reset:', newDiet);
-      setDiets((prevDiets) => [...prevDiets, { ...newDiet, id: newId}]);
+  const handleDeleteDiet = (dietId: string | undefined) => {
+    if (dietId) {
+      setDiets((prevDiets) => prevDiets.filter((diet) => diet.id !== dietId));
     }
-
-    setNewDiet({id: '', nameDiet: ''});
-    setSelectedDiet(null);
+    setMenuAnchorEl(null);
+    setSelectedDietForMenu(null);
+    setConfirmDeleteDialogOpen(false);
     handleClose();
   };
-
-  const handleOptionsClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
-    setMenuAnchorEl(event.currentTarget);
-  },[setMenuAnchorEl]);
   
   useEffect(() => {
     calculateContentHeight();
@@ -134,7 +121,7 @@ export default function App() {
     return () => {
       window.removeEventListener('resize', handleWindowResize);
     };
-  },[]);
+  });
 
   const handleWindowResize = debounce(() => {
     setWindowWidth(window.innerHeight);
@@ -170,9 +157,9 @@ export default function App() {
               {
                 diets.length > 0 ? 
                 (
-                  <ul>
-                    {diets.map((diet, index) => (
-                        <Card key={index} sx={{ margin: 1, display: 'flex', flexDirection: 'row', alignItems: 'start'}}>
+                  <Grid>
+                    {diets.map((diet) => (
+                        <Card key={diet.id} sx={{ margin: 1, display: 'flex', flexDirection: 'row', alignItems: 'start'}}>
                           <CardContent style={{ display: 'flex', flexDirection: 'column', alignItems: 'start', flex: 1, marginRight: '16px'}}>
                             <Typography variant="body1" style={{marginBottom: '4px', color: 'black'}}>
                               {diet.nameDiet}
@@ -185,27 +172,23 @@ export default function App() {
                                 Grupos de Alimentos
                               </Link>
                             </Typography>
-                
                           </CardContent>
                           <CardActions>
-                            <IconButton 
-                              aria-label='options'
-                              onClick={handleOptionsClick}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
+                          <IconButton aria-label="options" onClick={(e) => handleOptionsClick(e, diet)}>
+                            <MoreVertIcon />
+                          </IconButton>
                             <Menu
                               anchorEl={menuAnchorEl}
                               open={Boolean(menuAnchorEl)}
                               onClose={() => setMenuAnchorEl(null)}
                             >
-                              <MenuItem onClick={() => handleEditDiet(index)}>Editar</MenuItem>
-                              <MenuItem onClick={() => handleDeletDiet(index)}>Eliminar</MenuItem>
+                              <MenuItem onClick={() => handleEditDiet(selectedDietForMenu)}>Editar</MenuItem>
+                              <MenuItem onClick={() => setConfirmDeleteDialogOpen(true)}>Eliminar</MenuItem>
                             </Menu>
                           </CardActions>
                         </Card>
                       ))}
-                  </ul>
+                  </Grid>
                 ) : (
                   <Typography variant='h6' className={classes.text}>
                     No hay dietas registradas.
@@ -216,7 +199,7 @@ export default function App() {
             </Stack>
             
             <Stack direction="row-reverse">
-            <Button onClick={handleOpenModal}>
+            <Button onClick={() => handleOpenModal()}>
               <Box sx={{ textAlign: "center"}}>
                 <Fab  size="medium" color="primary" aria-label="add" >
                 <AddIcon />
@@ -230,7 +213,7 @@ export default function App() {
               onClose={handleClose}
             >
               <DialogTitle id="form-dialog-title">
-                {editingDiet ? 'Edit Diet' : 'New Diet'}
+                {creatingNewDiet ? 'New Diet' : 'Edit Diet'}
               </DialogTitle>
               <DialogContent>
                 <Grid container spacing={2}>
@@ -239,12 +222,12 @@ export default function App() {
                       id='nameDiet'
                       label="Name of Diet" 
                       fullWidth 
-                      value={ editingDiet ? editingDiet.nameDiet : newDiet.nameDiet} 
-                      onChange={(e) => { 
-                        if(editingDiet) {
-                          setEditingDiet({ ...editingDiet, nameDiet: e.target.value});
-                        } else {
-                          setNewDiet({ ...newDiet, nameDiet: e.target.value});
+                      value={creatingNewDiet ? newDiet.nameDiet : editingDiet?.nameDiet || ''}
+                      onChange={(e) => {
+                        if (creatingNewDiet) {
+                          setNewDiet({ ...newDiet, nameDiet: e.target.value });
+                        } else if (editingDiet) {
+                          setEditingDiet({ ...editingDiet, nameDiet: e.target.value });
                         }
                       }}
                     />
@@ -252,13 +235,12 @@ export default function App() {
                 </Grid>
               </DialogContent>
               <DialogActions>
-                <Button onClick={handleClose}>Cancel</Button>
-                <Button onClick={handleAcceptDiet} color='primary'>
-                  {editingDiet ? 'Save' : 'Create'}
-                </Button>
+              <Button onClick={() => handleAcceptDiet()} color="primary">
+                {creatingNewDiet ? 'Crear' : 'Guardar'}
+              </Button>
               </DialogActions>
             </Dialog>
-
+            
             <Stack alignSelf='center'>
               <Box alignSelf='auto' sx={{ position: 'revert', bottom: 0}}>
                 <BottomNavigation
@@ -295,6 +277,20 @@ export default function App() {
           </Box>
         </Stack>
       </Container>
+      <Dialog open={confirmDeleteDialogOpen} onClose={() => setConfirmDeleteDialogOpen(false)}>
+        <DialogTitle>¿Quieres borrar "{selectedDietForMenu?.nameDiet}"?</DialogTitle>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteDialogOpen(false)} color="primary">
+            No
+          </Button>
+          {selectedDietForMenu !== null && (
+            <Button onClick={() => handleDeleteDiet(selectedDietForMenu?.id)} color="primary">
+              Si
+            </Button>
+          )}
+          
+        </DialogActions>
+      </Dialog>
     </>
   )
 }
