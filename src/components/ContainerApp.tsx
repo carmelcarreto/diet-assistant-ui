@@ -91,6 +91,9 @@ export default function App() {
   const handleClose = () => {
     setModalOpen(false);
     setMenuAnchorEl(null);
+    setCreatingNewDiet(false);
+    setEditingDiet(null);
+    setNewDiet({ id: '', nameDiet: '' });
   }
   
   const handleOptionsClick = useCallback((event: React.MouseEvent<HTMLElement>, diet: Diet) => {
@@ -235,6 +238,9 @@ export default function App() {
                 </Grid>
               </DialogContent>
               <DialogActions>
+              <Button onClick={handleClose} color="primary">
+                Cancelar
+              </Button>
               <Button onClick={() => handleAcceptDiet()} color="primary">
                 {creatingNewDiet ? 'Crear' : 'Guardar'}
               </Button>
